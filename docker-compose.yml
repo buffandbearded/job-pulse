@@ -1,0 +1,15 @@
+name: job-pulse
+services:
+  postgres:
+    image: postgres:16
+    container_name: job-pulse-db
+    environment:
+      POSTGRES_USER: jobpulse
+      POSTGRES_PASSWORD: jobpulse
+      POSTGRES_DB: jobpulse
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
