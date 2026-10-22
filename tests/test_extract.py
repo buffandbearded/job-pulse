@@ -23,3 +23,9 @@ def test_tags_are_used():
 
 def test_go_not_matched_in_plain_text():
     assert "go" not in extract_skills(clean_text({"description": "ready to go and grow"}))
+
+
+def test_remoteok_tags_are_ignored():
+    payload = {"position": "Account Manager", "tags": ["golang", "python"]}
+    assert extract_skills(clean_text(payload, "remoteok")) == set()
+    assert "python" in extract_skills(clean_text(payload, "arbeitnow"))

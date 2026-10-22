@@ -24,11 +24,14 @@ COMPILED = {
 TAG_RE = re.compile(r"<[^>]+>")
 
 
-def clean_text(payload: dict) -> str:
+def clean_text(payload: dict, source: str = "") -> str:
+    # RemoteOK pads postings with unrelated SEO tags (e.g. "golang" on an Account Manager
+    # role), so its tags are ignored; the other sources' tags are genuine.
+    tags = [] if source == "remoteok" else (payload.get("tags") or [])
     parts = [
         payload.get("title") or payload.get("position") or "",
         payload.get("description") or "",
-        " ".join(payload.get("tags") or []),
+        " ".join(tags),
     ]
     text = html.unescape(TAG_RE.sub(" ", " ".join(parts)))
     return text.lower()
@@ -50,7 +53,7 @@ def run():
         rows = cur.fetchall()
         total = 0
         for source, job_id, payload in rows:
-            for skill in extract_skills(clean_text(payload)):
+            for skill in extract_skills(clean_text(payload, source)):
                 cur.execute(
                     "INSERT INTO raw.job_skills (source, id, skill) VALUES (%s, %s, %s)",
                     (source, job_id, skill),
