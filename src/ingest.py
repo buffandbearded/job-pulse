@@ -2,40 +2,75 @@ import json
 import requests
 import psycopg2
 
-URL = "https://remotive.com/api/remote-jobs"
 DSN = "host=localhost port=5433 dbname=jobpulse user=jobpulse password=jobpulse"
+HEADERS = {"User-Agent": "job-pulse portfolio project (github.com/buffandbearded/job-pulse)"}
 
 DDL = """
 CREATE SCHEMA IF NOT EXISTS raw;
 CREATE TABLE IF NOT EXISTS raw.job_postings (
-    id BIGINT PRIMARY KEY,
+    source TEXT NOT NULL,
+    id TEXT NOT NULL,
     payload JSONB NOT NULL,
-    ingested_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    ingested_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (source, id)
 );
 """
 
 
-def fetch_jobs():
-    resp = requests.get(URL, timeout=30)
+def get_json(url):
+    resp = requests.get(url, headers=HEADERS, timeout=30)
     resp.raise_for_status()
-    return resp.json()["jobs"]
+    return resp.json()
 
 
-def load(jobs):
+def fetch_remotive():
+    jobs = get_json("https://remotive.com/api/remote-jobs")["jobs"]
+    return [(str(j["id"]), j) for j in jobs]
+
+
+def fetch_remoteok():
+    data = get_json("https://remoteok.com/api")
+    # first element is a legal notice, not a job
+    return [(str(j["id"]), j) for j in data if isinstance(j, dict) and j.get("id")]
+
+
+def fetch_arbeitnow(pages=5):
+    out = []
+    for page in range(1, pages + 1):
+        data = get_json(f"https://www.arbeitnow.com/api/job-board-api?page={page}")
+        jobs = data.get("data", [])
+        if not jobs:
+            break
+        out += [(j["slug"], j) for j in jobs if j.get("remote")]
+    return out
+
+
+SOURCES = {
+    "remotive": fetch_remotive,
+    "remoteok": fetch_remoteok,
+    "arbeitnow": fetch_arbeitnow,
+}
+
+
+def load(source, rows):
     with psycopg2.connect(DSN) as conn, conn.cursor() as cur:
         cur.execute(DDL)
-        for job in jobs:
+        for job_id, job in rows:
             cur.execute(
                 """
-                INSERT INTO raw.job_postings (id, payload)
-                VALUES (%s, %s)
-                ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload
+                INSERT INTO raw.job_postings (source, id, payload)
+                VALUES (%s, %s, %s)
+                ON CONFLICT (source, id) DO UPDATE SET payload = EXCLUDED.payload
                 """,
-                (job["id"], json.dumps(job)),
+                (source, job_id, json.dumps(job)),
             )
-    return len(jobs)
+    return len(rows)
 
 
 if __name__ == "__main__":
-    n = load(fetch_jobs())
-    print(f"Loaded {n} job postings")
+    for name, fetch in SOURCES.items():
+        try:
+            n = load(name, fetch())
+            print(f"{name}: loaded {n} postings")
+        except Exception as exc:
+            print(f"{name}: FAILED - {exc}")
