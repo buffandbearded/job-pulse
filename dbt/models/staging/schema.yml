@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: stg_job_postings
+    columns:
+      - name: job_key
+        tests: [unique, not_null]
+      - name: title
+        tests: [not_null]
+  - name: stg_job_skills
+    columns:
+      - name: job_key
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_job_postings')
+              field: job_key
+      - name: skill
+        tests: [not_null]

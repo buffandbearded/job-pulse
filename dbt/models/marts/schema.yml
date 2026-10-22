@@ -1,0 +1,9 @@
+version: 2
+
+models:
+  - name: mart_skill_demand
+    columns:
+      - name: skill
+        tests: [unique, not_null]
+      - name: postings
+        tests: [not_null]

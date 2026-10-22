@@ -1,0 +1,12 @@
+job_pulse:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: job-pulse-db
+      port: 5432
+      user: jobpulse
+      password: jobpulse
+      dbname: jobpulse
+      schema: analytics
+      threads: 4
