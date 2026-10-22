@@ -223,3 +223,4 @@ __marimo__/
 dbt/target/
 dbt/logs/
 dbt/dbt_packages/
+dbt/.user.yml

@@ -2,3 +2,9 @@ requests
 psycopg2-binary
 python-dotenv
 pytest
+fastapi
+uvicorn
+httpx
+streamlit
+pandas
+altair
